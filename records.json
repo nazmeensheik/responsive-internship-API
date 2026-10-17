@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "title": "Java Developer Intern",
+    "company": "Tech Solutions",
+    "domain": "Java",
+    "location": "Hyderabad",
+    "duration": "3 Months"
+  },
+  {
+    "id": 2,
+    "title": "Python Developer Intern",
+    "company": "CodeWorks",
+    "domain": "Python",
+    "location": "Remote",
+    "duration": "4 Months"
+  },
+  {
+    "id": 3,
+    "title": "Frontend Developer Intern",
+    "company": "Web Innovations",
+    "domain": "Web Development",
+    "location": "Hyderabad",
+    "duration": "3 Months"
+  },
+  {
+    "id": 4,
+    "title": "Machine Learning Intern",
+    "company": "Future AI",
+    "domain": "AI and ML",
+    "location": "Remote",
+    "duration": "6 Months"
+  },
+  {
+    "id": 5,
+    "title": "java developer intern",
+    "company": "Tech solutions",
+    "domain": "java",
+    "location": "Hyderabad",
+    "duration": "3 months"
+  },
+  {
+    "id": 6,
+    "title": "python developer intern",
+    "company": "codeWorks",
+    "domain": "python",
+    "location": "remote",
+    "duration": "4 months"
+  }
+]

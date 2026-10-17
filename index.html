@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internship Records</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Internship Records</h1>
+        <p>Manage and explore internship opportunities</p>
+    </header>
+
+    <main class="container">
+        <section class="panel">
+            <h2 id="formTitle">Add Internship</h2>
+
+            <form id="internshipForm">
+                <label for="title">Internship Title</label>
+                <input id="title" required maxlength="100"
+                       placeholder="Java Developer Intern">
+
+                <label for="company">Company</label>
+                <input id="company" required maxlength="100"
+                       placeholder="Company name">
+
+                <label for="domain">Domain</label>
+                <input id="domain" required maxlength="80"
+                       placeholder="Java, Python, Web Development">
+
+                <label for="location">Location</label>
+                <input id="location" required maxlength="100"
+                       placeholder="Hyderabad or Remote">
+
+                <label for="duration">Duration</label>
+                <input id="duration" required maxlength="50"
+                       placeholder="3 Months">
+
+                <button type="submit" id="submitButton">Add Record</button>
+                <button type="button" id="cancelButton" hidden>Cancel Edit</button>
+            </form>
+
+            <p id="formMessage" role="status"></p>
+        </section>
+
+        <section class="panel">
+            <h2>Available Internships</h2>
+
+            <label for="search">Search by title, company or domain</label>
+            <input id="search" type="search" placeholder="Type to search">
+
+            <p id="status" role="status">Loading records...</p>
+            <div id="records"></div>
+
+            <nav class="pagination" aria-label="Pagination">
+                <button id="previousButton" type="button">Previous</button>
+                <span id="pageNumber">Page 1</span>
+                <button id="nextButton" type="button">Next</button>
+            </nav>
+        </section>
+    </main>
+
+    <footer>Built with HTML, CSS, JavaScript and Express</footer>
+    <script src="script.js"></script>
+</body>
+</html>
