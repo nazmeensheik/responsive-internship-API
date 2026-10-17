@@ -7,11 +7,29 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, "records.json");
 
-app.use(express.json());
-app.use(express.static(__dirname));
+// Allow the GitHub Pages frontend to access this public API.
+app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method === "OPTIONS") {
+        return res.sendStatus(204);
+    }
+
+    next();
+});
+
+app.use(express.json({ limit: "100kb" }));
 
 function readRecords() {
-    return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+    const records = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+
+    if (!Array.isArray(records)) {
+        throw new Error("Invalid records file");
+    }
+
+    return records;
 }
 
 function saveRecords(records) {
@@ -19,33 +37,61 @@ function saveRecords(records) {
 }
 
 function validRecord(data) {
+    const fields = ["title", "company", "domain", "location", "duration"];
+
     return data &&
-        typeof data.title === "string" && data.title.trim() &&
-        typeof data.company === "string" && data.company.trim() &&
-        typeof data.domain === "string" && data.domain.trim() &&
-        typeof data.location === "string" && data.location.trim() &&
-        typeof data.duration === "string" && data.duration.trim();
+        typeof data === "object" &&
+        !Array.isArray(data) &&
+        fields.every(field =>
+            typeof data[field] === "string" &&
+            data[field].trim().length > 0
+        );
 }
 
-app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", message: "Internship API is running" });
+function validId(value) {
+    const id = Number(value);
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+function handleError(res, message, error) {
+    console.error(message, error.message);
+    return res.status(500).json({ error: message });
+}
+
+// Health check
+app.get("/", (req, res) => {
+    res.json({ message: "Internship API is running" });
 });
 
+app.get("/api/health", (req, res) => {
+    res.json({
+        status: "ok",
+        message: "Internship API is running"
+    });
+});
+
+// Get all internships with search and pagination
 app.get("/api/internships", (req, res) => {
     try {
         let records = readRecords();
-        const search = (req.query.search || "").toLowerCase();
-        const page = Math.max(1, parseInt(req.query.page) || 1);
-        const limit = Math.min(20, Math.max(1, parseInt(req.query.limit) || 10));
+        const search = String(req.query.search || "").trim().toLowerCase();
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(
+            20,
+            Math.max(1, parseInt(req.query.limit, 10) || 10)
+        );
 
         if (search) {
-            records = records.filter(r =>
-                [r.title, r.company, r.domain, r.location]
-                    .some(value => value.toLowerCase().includes(search))
+            records = records.filter(record =>
+                ["title", "company", "domain", "location", "duration"]
+                    .some(field =>
+                        String(record[field] || "").toLowerCase().includes(search)
+                    )
             );
         }
 
         const total = records.length;
+        const totalPages = Math.ceil(total / limit);
         const start = (page - 1) * limit;
 
         res.json({
@@ -54,22 +100,24 @@ app.get("/api/internships", (req, res) => {
                 page,
                 limit,
                 total,
-                totalPages: Math.ceil(total / limit)
+                totalPages
             }
         });
     } catch (error) {
-        res.status(500).json({ error: "Could not read internship records" });
+        handleError(res, "Could not read internship records", error);
     }
 });
 
+// Get one internship
 app.get("/api/internships/:id", (req, res) => {
-    try {
-        const id = Number(req.params.id);
-        if (!Number.isInteger(id) || id < 1) {
-            return res.status(400).json({ error: "Invalid internship ID" });
-        }
+    const id = validId(req.params.id);
 
-        const record = readRecords().find(r => r.id === id);
+    if (id === null) {
+        return res.status(400).json({ error: "Invalid internship ID" });
+    }
+
+    try {
+        const record = readRecords().find(item => item.id === id);
 
         if (!record) {
             return res.status(404).json({ error: "Internship not found" });
@@ -77,22 +125,24 @@ app.get("/api/internships/:id", (req, res) => {
 
         res.json({ data: record });
     } catch (error) {
-        res.status(500).json({ error: "Could not read internship record" });
+        handleError(res, "Could not read internship record", error);
     }
 });
 
+// Create an internship
 app.post("/api/internships", (req, res) => {
-    try {
-        if (!validRecord(req.body)) {
-            return res.status(400).json({
-                error: "All fields are required and must be non-empty strings"
-            });
-        }
+    if (!validRecord(req.body)) {
+        return res.status(400).json({
+            error: "All fields are required and must be non-empty strings"
+        });
+    }
 
+    try {
         const records = readRecords();
-        const id = records.length
-            ? Math.max(...records.map(r => r.id)) + 1
-            : 1;
+        const id = records.reduce(
+            (max, record) => Math.max(max, Number(record.id) || 0),
+            0
+        ) + 1;
 
         const record = {
             id,
@@ -111,26 +161,27 @@ app.post("/api/internships", (req, res) => {
             data: record
         });
     } catch (error) {
-        res.status(500).json({ error: "Could not save internship" });
+        handleError(res, "Could not save internship", error);
     }
 });
 
+// Update an internship
 app.put("/api/internships/:id", (req, res) => {
+    const id = validId(req.params.id);
+
+    if (id === null) {
+        return res.status(400).json({ error: "Invalid internship ID" });
+    }
+
+    if (!validRecord(req.body)) {
+        return res.status(400).json({
+            error: "All fields are required and must be non-empty strings"
+        });
+    }
+
     try {
-        const id = Number(req.params.id);
-
-        if (!Number.isInteger(id) || id < 1) {
-            return res.status(400).json({ error: "Invalid internship ID" });
-        }
-
-        if (!validRecord(req.body)) {
-            return res.status(400).json({
-                error: "All fields are required and must be non-empty strings"
-            });
-        }
-
         const records = readRecords();
-        const index = records.findIndex(r => r.id === id);
+        const index = records.findIndex(record => record.id === id);
 
         if (index === -1) {
             return res.status(404).json({ error: "Internship not found" });
@@ -152,36 +203,49 @@ app.put("/api/internships/:id", (req, res) => {
             data: records[index]
         });
     } catch (error) {
-        res.status(500).json({ error: "Could not update internship" });
+        handleError(res, "Could not update internship", error);
     }
 });
 
+// Delete an internship
 app.delete("/api/internships/:id", (req, res) => {
+    const id = validId(req.params.id);
+
+    if (id === null) {
+        return res.status(400).json({ error: "Invalid internship ID" });
+    }
+
     try {
-        const id = Number(req.params.id);
-
-        if (!Number.isInteger(id) || id < 1) {
-            return res.status(400).json({ error: "Invalid internship ID" });
-        }
-
         const records = readRecords();
-        const updated = records.filter(r => r.id !== id);
+        const updatedRecords = records.filter(record => record.id !== id);
 
-        if (updated.length === records.length) {
+        if (updatedRecords.length === records.length) {
             return res.status(404).json({ error: "Internship not found" });
         }
 
-        saveRecords(updated);
+        saveRecords(updatedRecords);
+
         res.json({ message: "Internship deleted successfully" });
     } catch (error) {
-        res.status(500).json({ error: "Could not delete internship" });
+        handleError(res, "Could not delete internship", error);
     }
 });
 
+// Unknown API routes
 app.use("/api", (req, res) => {
     res.status(404).json({ error: "API endpoint not found" });
 });
 
-app.listen(PORT, () => {
-    console.log(`Internship API running at http://localhost:${PORT}`);
+// Handle invalid JSON
+app.use((error, req, res, next) => {
+    if (error instanceof SyntaxError && error.status === 400 && "body" in error) {
+        return res.status(400).json({ error: "Invalid JSON request body" });
+    }
+
+    console.error("Unexpected error:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Internship API is running on port ${PORT}`);
 });
