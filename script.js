@@ -1,5 +1,5 @@
 
-const API_URL = "/api/internships";
+const API_URL = "https://responsive-internship-api.onrender.com/api/internships";
 const PAGE_SIZE = 5;
 
 const form = document.getElementById("internshipForm");
@@ -38,7 +38,7 @@ async function apiRequest(url, options = {}) {
 
 function createTextElement(tag, text, className) {
     const element = document.createElement(tag);
-    element.textContent = text;
+    element.textContent = text ?? "";
     if (className) element.className = className;
     return element;
 }
@@ -56,7 +56,8 @@ async function loadRecords() {
 
         const result = await apiRequest(`${API_URL}?${query}`);
         const records = result.data || [];
-        totalPages = Math.max(1, result.pagination.totalPages);
+
+        totalPages = Math.max(1, result.pagination?.totalPages || 1);
 
         pageNumber.textContent = `Page ${currentPage} of ${totalPages}`;
         previousButton.disabled = currentPage <= 1;
@@ -67,7 +68,8 @@ async function loadRecords() {
             return;
         }
 
-        statusBox.textContent = `${result.pagination.total} internship(s) found.`;
+        statusBox.textContent =
+            `${result.pagination?.total ?? records.length} internship(s) found.`;
 
         records.forEach(record => {
             const card = document.createElement("article");
@@ -91,7 +93,8 @@ async function loadRecords() {
             recordsBox.appendChild(card);
         });
     } catch (error) {
-        statusBox.textContent = `Unable to load records: ${error.message}. Start the server with npm start.`;
+        statusBox.textContent =
+            `Unable to load records: ${error.message}. Please check the server.`;
     }
 }
 
